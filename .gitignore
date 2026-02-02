@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Training data (too large)
+training_data/
+*.mp4
+*.webm
+*.mov
+
+# Model weights
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# Reference repos (cloned separately)
+CausVid/
+Causal-Forcing/
+FastGen/
+
+# Misc
+.DS_Store
+*.log
+.env
