@@ -19,14 +19,15 @@ import os
 # Add parent to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import from LingBot-World
-import sys
-sys.path.insert(0, '/home/sky/lingbot-world')
-
+# Import from wan package (pip install)
 from wan.modules.t5 import T5EncoderModel
-from wan.modules.vae2_1 import Wan2_1_VAE as WanVAE
-from wan.utils.fm_solvers import (FlowDPMSolverMultistepScheduler,
-                                   retrieve_timesteps)
+from wan.modules import WanVAE
+try:
+    from wan.utils.fm_solvers import (FlowDPMSolverMultistepScheduler,
+                                       retrieve_timesteps)
+except ImportError:
+    from diffusers import FlowMatchEulerDiscreteScheduler as FlowDPMSolverMultistepScheduler
+    retrieve_timesteps = None
 from .causal_model import CausalWanModel
 from .weight_loader import LingBotWeightLoader
 
@@ -354,12 +355,12 @@ def main():
     # Load causal student model
     print("[DMD] Loading causal student model...")
     
-    # Create student model
+    # Create student model (LingBot-World dimensions)
     student = CausalWanModel(
-        dim=2048,
-        num_heads=16,
+        dim=5120,
+        num_heads=40,
         num_layers=40,
-        ffn_dim=8192,
+        ffn_dim=13824,
         freq_dim=256,
         text_len=512,
         patch_size=(1, 2, 2),
@@ -381,10 +382,10 @@ def main():
     # Create teacher (same architecture, frozen)
     print("[DMD] Loading teacher model...")
     teacher = CausalWanModel(
-        dim=2048,
-        num_heads=16,
+        dim=5120,
+        num_heads=40,
         num_layers=40,
-        ffn_dim=8192,
+        ffn_dim=13824,
         freq_dim=256,
         text_len=512,
         patch_size=(1, 2, 2),

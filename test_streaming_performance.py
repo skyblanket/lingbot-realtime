@@ -58,7 +58,7 @@ def test_streaming_performance(num_frames=10):
     
     # Encode text (once, reused)
     with torch.no_grad():
-        context = text_encoder([prompt])
+        context = text_encoder([prompt], device=device)
     
     print(f"\n[Perf] Generating {num_frames} frames...")
     print("-"*70)
