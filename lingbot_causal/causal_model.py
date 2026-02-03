@@ -3,6 +3,9 @@ Causal LingBot-World Model
 Full DiT model with block-wise causal attention for streaming generation
 """
 
+import sys
+sys.path.insert(0, '/workspace/lingbot-world')
+
 import torch
 import torch.nn as nn
 import math
@@ -11,11 +14,25 @@ from typing import Optional, Dict
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 
-from wan.modules.model import (
-    WanRMSNorm, WanLayerNorm, rope_apply, rope_params, sinusoidal_embedding_1d,
-    Head, WanSelfAttention, WanAttentionBlock, WanCrossAttention
-)
-from wan.modules.animate.model_animate import MLPProj
+try:
+    from wan.modules.model import (
+        WanRMSNorm, WanLayerNorm, rope_apply, rope_params, sinusoidal_embedding_1d,
+        Head, WanSelfAttention, WanAttentionBlock, WanCrossAttention
+    )
+    try:
+        from wan.modules.animate.model_animate import MLPProj
+    except ImportError:
+        MLPProj = None
+except ImportError as e:
+    print(f"[CausalModel] Warning: Could not import Wan modules: {e}")
+    # Define placeholders for standalone use
+    WanRMSNorm = nn.RMSNorm if hasattr(nn, 'RMSNorm') else nn.LayerNorm
+    WanLayerNorm = nn.LayerNorm
+    WanCrossAttention = None
+    rope_apply = rope_params = sinusoidal_embedding_1d = lambda *a, **k: None
+    Head = MLPProj = lambda *a, **k: None
+    WanSelfAttention = WanAttentionBlock = None
+
 from .causal_attention import CausalWanSelfAttention, BlockWiseCausalMask, KVCacheManager
 
 

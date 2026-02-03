@@ -15,19 +15,18 @@ class LingBotWeightLoader:
     Loads LingBot-World weights into CausalWanModel
     
     LingBot-World uses MoE with two experts (high_noise, low_noise)
-    We'll load both and create a unified causal model
+    For DMD training, we only load one expert (high_noise) - much faster
     """
     
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, use_expert='high_noise'):
         self.model_path = Path(model_path)
-        self.high_noise_path = self.model_path / "high_noise_model"
-        self.low_noise_path = self.model_path / "low_noise_model"
+        self.expert_path = self.model_path / f"{use_expert}_model"
         
         # Load config
-        with open(self.high_noise_path / "config.json") as f:
+        with open(self.expert_path / "config.json") as f:
             self.config = json.load(f)
         
-        print(f"[WeightLoader] Loaded config: {self.config}")
+        print(f"[WeightLoader] Loaded config from {use_expert} expert: {self.config}")
         print(f"  - Dim: {self.config['dim']}")
         print(f"  - Layers: {self.config['num_layers']}")
         print(f"  - Heads: {self.config['num_heads']}")
@@ -52,18 +51,6 @@ class LingBotWeightLoader:
         
         return state_dict
     
-    def create_key_mapping(self) -> Dict[str, str]:
-        """
-        Create mapping from LingBot-World keys to CausalWanModel keys
-        
-        Most keys are the same, just need to handle:
-        - Camera control layers (already match)
-        - Norm layers (already match)
-        """
-        # Keys are mostly identical, no renaming needed
-        # Just need to filter out MoE routing if present
-        return {}
-    
     def load_into_causal_model(self, causal_model, device='cuda'):
         """
         Load LingBot-World weights into CausalWanModel
@@ -72,11 +59,8 @@ class LingBotWeightLoader:
             causal_model: CausalWanModel instance
             device: Device to load on
         """
-        print("[WeightLoader] Loading high noise expert weights...")
-        high_noise_state = self.load_safetensors_sharded(self.high_noise_path)
-        
-        print("[WeightLoader] Loading low noise expert weights...")
-        low_noise_state = self.load_safetensors_sharded(self.low_noise_path)
+        print("[WeightLoader] Loading expert weights...")
+        state = self.load_safetensors_sharded(self.expert_path)
         
         # Get causal model state dict
         causal_state = causal_model.state_dict()
@@ -89,22 +73,22 @@ class LingBotWeightLoader:
         print("[WeightLoader] Mapping weights...")
         
         for key in causal_state.keys():
-            if key in high_noise_state:
+            if key in state:
                 # Check shape compatibility
-                if causal_state[key].shape == high_noise_state[key].shape:
-                    causal_state[key] = high_noise_state[key]
+                if causal_state[key].shape == state[key].shape:
+                    causal_state[key] = state[key]
                     loaded_keys.append(key)
                 else:
-                    mismatched_keys.append((key, causal_state[key].shape, high_noise_state[key].shape))
+                    mismatched_keys.append((key, causal_state[key].shape, state[key].shape))
             else:
                 # Try alternative naming
                 alt_key = key.replace("model.", "")
-                if alt_key in high_noise_state:
-                    if causal_state[key].shape == high_noise_state[alt_key].shape:
-                        causal_state[key] = high_noise_state[alt_key]
+                if alt_key in state:
+                    if causal_state[key].shape == state[alt_key].shape:
+                        causal_state[key] = state[alt_key]
                         loaded_keys.append(key)
                     else:
-                        mismatched_keys.append((key, causal_state[key].shape, high_noise_state[alt_key].shape))
+                        mismatched_keys.append((key, causal_state[key].shape, state[alt_key].shape))
                 else:
                     missing_keys.append(key)
         
@@ -122,11 +106,6 @@ class LingBotWeightLoader:
                 print(f"    - {k}")
             if len(missing_keys) > 10:
                 print(f"    ... and {len(missing_keys) - 10} more")
-        
-        if mismatched_keys:
-            print(f"[WeightLoader] Shape mismatches:")
-            for k, expected, got in mismatched_keys[:5]:
-                print(f"    - {k}: expected {expected}, got {got}")
         
         return causal_model
     
@@ -205,7 +184,7 @@ if __name__ == "__main__":
     # Test loading
     print("[Test] Testing weight loader...")
     
-    # Try to load (this will take time with 60GB model)
+    # Try to load (this will take time with 37GB model)
     try:
         model = load_lingbot_weights_into_causal()
         print("[Test] Weight loader works!")

@@ -22,11 +22,19 @@ import wandb
 import time
 
 # Add paths
-sys.path.insert(0, '/home/sky/lingbot-world')
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, '/workspace/lingbot-world')
+sys.path.insert(0, str(Path(__file__).parent.parent)
 
-from wan.modules.t5 import T5EncoderModel
-from wan.modules.vae2_1 import Wan2_1_VAE as WanVAE
+# Use diffusers for VAE and text encoder
+try:
+    from diffusers import AutoencoderKLWan, WanPipeline
+    from transformers import UMT5EncoderModel
+    USE_DIFFUSERS = True
+    print("Using diffusers for VAE and text encoder")
+except ImportError:
+    USE_DIFFUSERS = False
+    print("Diffusers not available - using simplified training")
+
 from lingbot_causal.causal_model import CausalWanModel
 from lingbot_causal.weight_loader import LingBotWeightLoader
 

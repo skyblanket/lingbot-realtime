@@ -3,6 +3,9 @@ Block-wise Causal Attention for LingBot-World
 Enables streaming generation by processing frames sequentially
 """
 
+import sys
+sys.path.insert(0, '/workspace/lingbot-world')
+
 import torch
 import torch.nn as nn
 import math
@@ -51,7 +54,18 @@ class CausalWanSelfAttention(nn.Module):
     
     def __init__(self, dim, num_heads, window_size=(-1, -1), qk_norm=True, eps=1e-6):
         super().__init__()
-        from wan.modules.model import WanRMSNorm
+        
+        try:
+            from wan.modules.model import WanRMSNorm
+        except ImportError:
+            # Fallback implementation
+            class WanRMSNorm(nn.Module):
+                def __init__(self, dim, eps=1e-6):
+                    super().__init__()
+                    self.weight = nn.Parameter(torch.ones(dim))
+                    self.eps = eps
+                def forward(self, x):
+                    return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps) * self.weight
         
         assert dim % num_heads == 0
         self.dim = dim
